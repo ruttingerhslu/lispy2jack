@@ -25,7 +25,7 @@ class TestCPS(unittest.TestCase):
         self.assertEqual(cps_ast, expected)
 
     def test_loop(self):
-        # input: (lambda (loop l ((x 2)) (if (= x 0) (x) (l (- x 1)))))
+        # input: (lambda () (loop l ((x 2)) (if (= x 0) (x) (l (- x 1)))))
         input = ['lambda', [], ['loop', 'l', [['x', 2]], ['if', ['=', 'x', 0], ['x'], ['l', ['-', 'x', 1]]]]]
 
         cps_ast = v(input)

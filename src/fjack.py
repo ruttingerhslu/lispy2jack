@@ -48,19 +48,3 @@ def read_from_tokens(tokens: list[str]) -> Exp:
 def parse(program: str) -> Exp:
     """Read a Scheme expression from a string."""
     return read_from_tokens(tokenize(program))
-
-def repl(prompt: str = "lis.py> "):
-    """A prompt read-eval-print loop."""
-    while True:
-        ast = parse(input(prompt))
-        cps = v(ast)
-        collect_phi_assignments(cps)
-        ssa = g_proc(v(ast))
-
-        print(f'Scheme: {ast}')
-        print(f'CPS: {cps}')
-        print(f'Phi assignments: {phi_assignments}')
-        print(f'SSA: {ssa}')
-
-if __name__ == "__main__":
-    repl()

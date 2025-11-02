@@ -1,7 +1,7 @@
 rec_bound = set()
 labels = set()
 
-# note: expressions are all wrapped within []
+# note: all expressions are wrapped within []
 def f(m, c):
     """F: M × C → M'"""
     # F([(let ((x M_1)) M_2), C]) = F([M_1, (lambda(x) F([M_2, C]))])
