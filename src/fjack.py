@@ -4,9 +4,6 @@
 """
 ############ FJack: Scheme transpiler to Jack
 
-from .cps import *
-from .ssa import *
-
 # AST nodes
 Symbol = str
 Number = int | float
