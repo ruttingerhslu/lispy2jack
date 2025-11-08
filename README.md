@@ -42,3 +42,6 @@ And finally transform the A-Normalization to Jack:
 
 Factorial:
 (define f (lambda (n) (let ((g1478 (= n 0))) (if g1478 1 (let ((g1479 (- n 1))) (let ((g1480 (f g1479))) (* n g1480))))))) (f 20)
+
+If test:
+(let ((x (+ 1 2))) (if (= x 3) 10 20))

@@ -32,7 +32,7 @@ def normalize_name(m, k):
             return k(n)
         else:
             t = gensym()
-            return ['let', [t, n], k(t)]
+            return ['let', [[t, n]], k(t)]
     return normalize(m, cont)
 
 def normalize_name_star(m_star, k):
@@ -70,20 +70,11 @@ def normalize(m, k):
         return k(['lambda', params, normalize_term(body)])
 
     # let
-    elif isinstance(m, list) and len(m) == 3 and m[0] == 'let' and isinstance(m[1], list):
-        bindings = m[1]
+    elif isinstance(m, list) and len(m) == 3 and m[0] == 'let':
+        x, m1 = m[1][0]
         m2 = m[2]
-
-        def process_bindings(bindings, k):
-            if not bindings:
-                return k([])
-            (x, m1), *rest = bindings
-            return normalize(m1, lambda n1:
-                process_bindings(rest, lambda ns: k([[x, n1]] + ns))
-            )
-
-        return process_bindings(bindings, lambda normalized_bindings:
-            ['let', normalized_bindings, normalize(m2, k)]
+        return normalize(m1, lambda n1:
+            ['let', [[x, n1]], normalize(m2, k)]
         )
 
     # if
