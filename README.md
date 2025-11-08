@@ -12,18 +12,33 @@ To test this project run:
 pytest
 ```
 
-## Demo
-Possible code:
-```
-(lambda (f limit) (loop l ((i 0) (c 0)) (if (= i limit) c (let ((x (f i))) (let ((c' (if (= x 0) (+ c 1) c))) (l (+ i 1) c'))))))
-```
+## Semantics
+We first take the abstract syntax for Core Scheme
 
-Translated to CPS:
-```
-['lambda_proc', ['f', 'limit', 'k'], ['letrec', [['l', ['lambda_jump', ['i', 'c'], ['if', ['=', 'i', 'limit'], ['k', 'c'], ['let', [['x', ['f', 'i']]], ['letrec', [['j', ['lambda_jump', ["c'"], ['l', ['+', 'i', 1], "c'"]]]], ['if', ['=', 'x', 0], ['j', ['+', 'c', 1]], ['j', 'c']]]]]]]], ['l', 0, 0]]]
-```
+### Core Scheme
+M ::= V
+      | (let (x M_1) M_2)
+      | (if M_1 M_2 M_3)
+      | (M M_1 ... M_n)
+      | (O M_1 ... M_n)
+V ::= c | x | (lambda (x_1 ... x_n) M)
+V ∈ Values
+c ∈ Constants
+x ∈ Variables
+O ∈ Primitive Operations
 
-Translated to SSA:
-```
-['proc', ['f', 'limit'], ['goto', 'l_1;'], ['l', ':', {'i': [0, i+1], 'c': [0, c']}, ['if', ['=', 'i', 'limit'], 'then', ['return', 'c', ';'], 'else', ['x', '<-', ['f', 'i'], ';', ['if', ['=', 'x', 0], 'then', ['goto', 'j_2;'], 'else', ['goto', 'j_2;']]]] ['j', ':', {"c'": [c+1, c]}, ['goto', 'l_2', ';']]]]
-```
+where in lambda x_i are distinct and bound to M
+also in let expr: x is bound to M_2,
+any other variable is free
+
+Next, normalize using the algorithm described in "The essence of Compiling with Continuations"
+
+And finally transform the A-Normalization to Jack:
+
+- ['let', ['x', e1], e2]    -> var [type] x;\nlet x = emit(e1);\n emit(e2)
+- ['if', cond, t, e]        -> if (cond) { emit(t) } else {emit(e)}
+- ['lambda', params, body]  -> function [type] f1(params) { return emit(body) }
+- [fn, arg1, arg2, ...]     -> f1(arg1, arg2, …)
+
+Factorial:
+(define f (lambda (n) (let ((g1478 (= n 0))) (if g1478 1 (let ((g1479 (- n 1))) (let ((g1480 (f g1479))) (* n g1480))))))) (f 20)

@@ -1,16 +1,9 @@
 import itertools
 
-def make_gensym():
-    counter = itertools.count()
-    def gensym(prefix="t"):
-        return f"{prefix}{next(counter)}"
-    return gensym
+gensym_counter = itertools.count()
 
-def reset_gensym():
-    global gensym
-    gensym = make_gensym()
-
-gensym = make_gensym()
+def gensym(prefix="t"):
+    return f"{prefix}{next(gensym_counter)}"
 
 def normalize_term(m):
     return normalize(m, lambda x: x)
