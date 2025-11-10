@@ -71,7 +71,8 @@ def normalize(m, k):
 
     # let
     elif isinstance(m, list) and len(m) == 3 and m[0] == 'let':
-        x, m1 = m[1][0]
+        print(m)
+        x, m1 = m[1]
         m2 = m[2]
         return normalize(m1, lambda n1:
             ['let', [[x, n1]], normalize(m2, k)]
@@ -82,10 +83,18 @@ def normalize(m, k):
         m1, m2, m3 = m[1], m[2], m[3]
         return normalize_name(m1, lambda t: k(['if', t, normalize_term(m2), normalize_term(m3)]))
 
-    # function application or primitive op
     elif isinstance(m, list) and len(m) >= 1:
-        fn, *args = m
-        return normalize_name(fn, lambda t: normalize_name_star(args, lambda t_star: k([t] + t_star)))
+        fn, *m_star = m
+        # primitve operation
+        if isinstance(fn, str) and fn in ['+', '-', '*', '/', '=', '<', '>']:
+            return normalize_name_star(m_star, lambda t_star: k([fn] + t_star))
+        # function application
+        else:
+            return normalize_name(fn, lambda t:
+                normalize_name_star(m_star, lambda t_star:
+                    k([t] + t_star)
+                )
+            )
 
     # atomic value
     elif is_value(m):

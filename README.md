@@ -35,13 +35,45 @@ Next, normalize using the algorithm described in "The essence of Compiling with 
 
 And finally transform the A-Normalization to Jack:
 
-- ['let', ['x', e1], e2]    -> var [type] x;\nlet x = emit(e1);\n emit(e2)
+- ['let', ['x', e1], e2]    -> let x = emit(e1);\n emit(e2)
 - ['if', cond, t, e]        -> if (cond) { emit(t) } else {emit(e)}
-- ['lambda', params, body]  -> function [type] f1(params) { return emit(body) }
 - [fn, arg1, arg2, ...]     -> f1(arg1, arg2, …)
 
-Factorial:
-(define f (lambda (n) (let ((g1478 (= n 0))) (if g1478 1 (let ((g1479 (- n 1))) (let ((g1480 (f g1479))) (* n g1480))))))) (f 20)
+Variables have to be declared at the top of the function they're used in.
 
-If test:
-(let ((x (+ 1 2))) (if (= x 3) 10 20))
+Lambdas are not yet supported, due to the nature of Jack not being able to call them.
+They could be implemented, however by defining them as separate functions (similar to declaring variables at the top of the function; maybe using environments (?)), one could call them with their respective arguments. Say we have the following Scheme code:
+```((lambda (x y) (+ x y)) 1 2)```
+Could be translated to Jack by taking the lambda definition, defining it as a function with a name, returning that name as a continuation and calling it with arguments: 1, 2
+```
+function void main() {
+  f0(1, 2)
+}
+...
+function int f0(int v0, int v1) {
+  return v0 + v1;
+}
+...
+```
+
+## Code examples
+lambda with 2 args:
+((lambda (x y) (+ x y)) 1 2)
+
+not allowed, x and y are unknown:
+((lambda (x y) (+ x y)))
+
+if test (not supported):
+(let (x (+ 1 2)) (if (= x 3) 10 20))
+
+if test (not allowed, x is unknown):
+(if (> x 0) (x) (- x))
+
+if lambda:
+((lambda (x) (> x 1)) 2)
+
+square lambda:
+((lambda (x) (* x x)) 5)
+
+combined nested lambda (not supported):
+(let (square (lambda (x) (* x x))) (if (> (square 3) 5) (square 10) (square 2)))
