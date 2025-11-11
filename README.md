@@ -57,25 +57,28 @@ The consequence of this is of course, that lambda expressions without arguments 
 
 ## Code examples
 lambda with 2 args:
-((lambda (x y) (+ x y)) 1 2)
+(print ((lambda (x y) (+ x y)) 1 2))
 
 not allowed, x and y are unknown:
 ((lambda (x y) (+ x y)))
 
 if test:
-(let (x (+ 1 2)) (if (= x 3) 10 20))
+(let (x (+ 1 2)) (if (= x 3) (print 10) (print 20)))
 
 if test (not allowed, x is unknown):
 (if (> x 0) (x) (- x))
 
 if lambda:
-((lambda (x) (> x 1)) 2)
+(print ((lambda (x) (> x 1)) 2))
 
 square lambda:
-((lambda (x) (* x x)) 5)
+(print ((lambda (x) (* x x)) 5))
 
-named lambda:
-(let (square (lambda (x) (* x x))) (if (> (square 3) 5) (square 10) (square 2)))
+named lambda (not supported):
+(let (square (lambda (x) (* x x))) (if (> (square 3) 5) (print (square 10)) (print (square 2))))
 
 nested lambda (not supported):
-(let (add (lambda (x) (lambda (y) (+ x y)))) ((add 2) 3))
+(let (add (lambda (x) (lambda (y) (+ x y)))) (print ((add 2) 3)))
+
+nested lambda (not supported):
+(print (((lambda (x) (lambda (y) (lambda (z) (+ x (+ y z))))) 1) 2 3))

@@ -71,7 +71,6 @@ def normalize(m, k):
 
     # let
     elif isinstance(m, list) and len(m) == 3 and m[0] == 'let':
-        print(m)
         x, m1 = m[1]
         m2 = m[2]
         return normalize(m1, lambda n1:

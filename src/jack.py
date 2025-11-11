@@ -22,8 +22,6 @@ class ANFtoJack:
                 code_lines.append(f"let {target_var} = {expr};")
             return local_vars, "\n".join(code_lines) if code_lines else expr
 
-
-
         # lambda handling
         if isinstance(anf, list) and anf[0] == 'lambda':
             _, params, body = anf
