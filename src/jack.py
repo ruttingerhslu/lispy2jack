@@ -31,6 +31,9 @@ class ANFtoJack:
             func_name = gensym("lambda")
             declared_funcs.append((func_name, params, body))
 
+            if target_var:
+                code_lines.append(f"let {target_var} = Main.{func_name};")
+                return local_vars, "\n".join(code_lines)
             return local_vars, func_name
 
         # let
@@ -40,18 +43,22 @@ class ANFtoJack:
                 raise ValueError("ANF let can only have one binding")
             x, e = bindings[0]
 
-            # handle the binding expression, possibly with a lambda inside
-            e_vars, e_code = self.anf_to_jack(e, declared_vars, target_var=None, declared_funcs=declared_funcs)
-            local_vars.update(e_vars)
-
-            if x not in declared_vars:
-                local_vars.add(x)
-                declared_vars.add(x)
-
-            if isinstance(e_code, str) and not e_code.startswith("let "):
-                code_lines.append(f"let {x} = {e_code};")
+            # bind lambda to variable
+            if isinstance(e, list) and e[0] == 'lambda':
+                _, params, lam_body = e
+                declared_funcs.append((x, params, lam_body))
             else:
-                code_lines.append(e_code)
+                e_vars, e_code = self.anf_to_jack(e, declared_vars, target_var=None, declared_funcs=declared_funcs)
+                local_vars.update(e_vars)
+
+                if x not in declared_vars:
+                    local_vars.add(x)
+                    declared_vars.add(x)
+
+                if isinstance(e_code, str) and not e_code.startswith("let "):
+                    code_lines.append(f"let {x} = {e_code};")
+                else:
+                    code_lines.append(e_code)
 
             body_vars, body_code = self.anf_to_jack(body, declared_vars, target_var, declared_funcs)
             local_vars.update(body_vars)
@@ -93,9 +100,7 @@ class ANFtoJack:
                 raise ValueError(f"Unexpected function expression in application: {fn}")
 
             args_str = ", ".join(str(a) for a in args)
-            if fn_name.startswith("lambda"):
-                fn_name = f"Main.{fn_name}"
-            expr = f"{fn_name}({args_str})"
+            expr = f"Main.{fn_name}({args_str})"
 
             if target_var:
                 code_lines.append(f"let {target_var} = {expr};")

@@ -62,7 +62,7 @@ lambda with 2 args:
 not allowed, x and y are unknown:
 ((lambda (x y) (+ x y)))
 
-if test (not supported):
+if test:
 (let (x (+ 1 2)) (if (= x 3) 10 20))
 
 if test (not allowed, x is unknown):
@@ -74,5 +74,8 @@ if lambda:
 square lambda:
 ((lambda (x) (* x x)) 5)
 
-combined nested lambda (not supported):
+named lambda:
 (let (square (lambda (x) (* x x))) (if (> (square 3) 5) (square 10) (square 2)))
+
+nested lambda (not supported):
+(let (add (lambda (x) (lambda (y) (+ x y)))) ((add 2) 3))
