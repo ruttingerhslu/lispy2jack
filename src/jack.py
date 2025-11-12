@@ -1,156 +1,125 @@
+from collections import defaultdict
 import itertools
 
-gensym_counter = itertools.count()
+class JackGenerator:
+    def __init__(self):
+        self.counters = defaultdict(lambda: itertools.count())
+        self.lifted = {}
+        self.function_bindings = {}
 
-def gensym(prefix="f"):
-    return f"{prefix}{next(gensym_counter)}"
+    def gensym(self, prefix="anon"):
+        return f"{prefix}{next(self.counters[prefix])}"
 
-class ANFtoJack:
-    def anf_to_jack(self, anf, declared_vars=None, target_var=None, declared_funcs=None):
-        if declared_vars is None:
-            declared_vars = set()
-        if declared_funcs is None:
-            declared_funcs = []
+    def indent(self, s, level=1):
+        pad = "  " * level
+        return "\n".join(pad + line if line.strip() else line for line in s.splitlines())
 
-        code_lines = []
-        local_vars = set()
+    def collect_vars(self, ast, vars_set=None):
+        if vars_set is None:
+            vars_set = set()
+        if not isinstance(ast, list):
+            return vars_set
+        op = ast[0]
+        if op == 'let':
+            bindings, body = ast[1], ast[2]
+            for name, val in bindings:
+                vars_set.add(name)
+                self.collect_vars(val, vars_set)
+            self.collect_vars(body, vars_set)
+        elif op == 'if':
+            for branch in ast[1:4]:
+                self.collect_vars(branch, vars_set)
+        elif op == 'lambda':
+            params, body = ast[1], ast[2]
+            vars_set.update(params)
+            self.collect_vars(body, vars_set)
+        else:
+            for e in ast[1:]:
+                self.collect_vars(e, vars_set)
+        return vars_set
 
-        # binary op
-        if isinstance(anf, list) and anf[0] in ['+', '-', '*', '/', '=', '<', '>']:
-            expr = self._expr_to_str(anf)
-            if target_var:
-                code_lines.append(f"let {target_var} = {expr};")
-            return local_vars, "\n".join(code_lines) if code_lines else expr
+    def generate_expr(self, ast):
+        if isinstance(ast, list):
+            if len(ast) == 0:
+                return ""
+            op = ast[0]
 
-        # lambda handling
-        if isinstance(anf, list) and anf[0] == 'lambda':
-            _, params, body = anf
+            if op == 'if':
+                cond = self.generate_expr(ast[1])
+                then_branch = self.generate_block(ast[2])
+                else_branch = self.generate_block(ast[3])
+                return f"if ({cond}) {{\n{self.indent(then_branch)}\n}} else {{\n{self.indent(else_branch)}\n}}"
 
-            func_name = gensym("lambda")
-            declared_funcs.append((func_name, params, body))
+            elif op == 'let':
+                bindings, body = ast[1], ast[2]
+                code_lines = []
+                for name, value in bindings:
+                    if isinstance(value, list) and value[0] == 'let':
+                        inner_bindings, inner_body = value[1], value[2]
+                        for inner_name, inner_val in inner_bindings:
+                            inner_code = self.generate_expr(['let', [[inner_name, inner_val]], []])
+                            code_lines.append(inner_code)
+                        final_expr = self.generate_expr(inner_body)
+                        code_lines.append(f"let {name} = {final_expr};")
+                    else:
+                        if isinstance(value, str) and value in self.lifted:
+                            self.function_bindings[name] = value
+                        else:
+                            code_lines.append(f"let {name} = {self.generate_expr(value)};")
+                code_lines.append(self.generate_expr(body))
+                return "\n".join([c for c in code_lines if c.strip()])
 
-            if target_var:
-                code_lines.append(f"let {target_var} = Main.{func_name};")
-                return local_vars, "\n".join(code_lines)
-            return local_vars, func_name
+            elif op in ['+', '-', '*', '/', '>', '<', '=', 'and', 'or']:
+                left = self.generate_expr(ast[1])
+                right = self.generate_expr(ast[2])
+                return f"({left} {op} {right})"
 
-        # let
-        if isinstance(anf, list) and anf[0] == 'let':
-            _, bindings, body = anf
-            if len(bindings) != 1:
-                raise ValueError("ANF let can only have one binding")
-            x, e = bindings[0]
+            elif op == "print":
+                return f"do Output.printInt({self.generate_expr(ast[1])});"
 
-            # bind lambda to variable
-            if isinstance(e, list) and e[0] == 'lambda':
-                _, params, lam_body = e
-                declared_funcs.append((x, params, lam_body))
             else:
-                e_vars, e_code = self.anf_to_jack(e, declared_vars, target_var=None, declared_funcs=declared_funcs)
-                local_vars.update(e_vars)
+                fn_name = ""
+                if op in self.function_bindings:
+                    fn_name = self.function_bindings[op]
+                args = ", ".join(self.generate_expr(a) for a in ast[1:])
+                return f"Main.{fn_name}({args})"
+        else:
+            if ast in self.function_bindings:
+                return self.function_bindings[ast]
+            return str(ast)
 
-                if x not in declared_vars:
-                    local_vars.add(x)
-                    declared_vars.add(x)
+    def generate_block(self, expr):
+        code = self.generate_expr(expr)
+        if not code.strip().endswith(";"):
+            code += ";"
+        if not (code.strip().startswith("let") or code.strip().startswith("do")):
+            code = "return " + code
+        return code
 
-                if isinstance(e_code, str) and not e_code.startswith("let "):
-                    code_lines.append(f"let {x} = {e_code};")
-                else:
-                    code_lines.append(e_code)
+    def generate_lifted_function(self, fn):
+        _, orig_name, params, body = fn
+        body_code = self.generate_block(body)
+        name = self.lifted[orig_name]
+        local_vars = self.collect_vars(body)
+        var_decls = "\n".join(f"var int {v};" for v in local_vars if v not in self.function_bindings)
+        return f"function int {name}({', '.join(f'int {p}' for p in params)}) {{\n{self.indent(var_decls)}\n{self.indent(body_code)}\n}}"
 
-            body_vars, body_code = self.anf_to_jack(body, declared_vars, target_var, declared_funcs)
-            local_vars.update(body_vars)
-            code_lines.append(body_code)
+    def generate_main(self, ast):
+        code = self.generate_expr(ast)
+        local_vars = self.collect_vars(ast)
+        var_decls = "\n".join(f"var int {v};" for v in local_vars if v not in self.function_bindings)
+        return f"function void main() {{\n{self.indent(var_decls)}\n{self.indent(code)}\n  return;\n}}"
 
-            return local_vars, "\n".join(code_lines)
+    def generate_jack(self, ast, lifted_funcs=None, class_name="Main"):
+        if lifted_funcs is None:
+            lifted_funcs = []
 
-        # if
-        if isinstance(anf, list) and anf[0] == 'if':
-            _, cond, t_branch, e_branch = anf
-            t_vars, t_code = self.anf_to_jack(t_branch, declared_vars.copy(), target_var)
-            e_vars, e_code = self.anf_to_jack(e_branch, declared_vars.copy(), target_var)
-            local_vars.update(t_vars)
-            local_vars.update(e_vars)
-            return local_vars, f"if ({self._expr_to_str(cond)}) {{\n{t_code}\n}} else {{\n{e_code}\n}}"
+        self.lifted = {fn[1]: fn[1] for fn in lifted_funcs}
+        self.function_bindings = {}
 
-        if isinstance(anf, (int, float, str)):
-            if target_var:
-                code_lines.append(f"let {target_var} = {anf};")
-                return local_vars, "\n".join(code_lines)
-            return local_vars, str(anf)
+        lifted_code = [self.generate_lifted_function(fn) for fn in lifted_funcs]
 
-        # function application
-        if isinstance(anf, list) and len(anf) >= 1:
-            fn = anf[0]
-            args = anf[1:]
+        main_code = self.generate_main(ast)
 
-            # fn is a lambda expression
-            if isinstance(fn, list) and fn[0] == 'lambda':
-                _, params, body = fn
-                func_name = gensym("lambda")
-                declared_funcs.append((func_name, params, body))
-                fn_name = func_name
-
-            # fn is a variable or function name
-            elif isinstance(fn, str):
-                fn_name = fn
-            else:
-                raise ValueError(f"Unexpected function expression in application: {fn}")
-
-            args_str = ", ".join(str(a) for a in args)
-            expr = f"Main.{fn_name}({args_str})"
-
-            if target_var:
-                code_lines.append(f"let {target_var} = {expr};")
-                return local_vars, "\n".join(code_lines)
-            return local_vars, expr
-
-        raise ValueError(f"Unrecognized ANF form: {anf}")
-
-    def _expr_to_str(self, expr):
-        if isinstance(expr, (int, float)):
-            return str(expr)
-        elif isinstance(expr, str):
-            return expr
-        elif isinstance(expr, list) and expr[0] in ['+', '-', '*', '/', '=', '>', '<'] and len(expr) > 2:
-            op, e1, e2 = expr
-            return f"({self._expr_to_str(e1)} {op} {self._expr_to_str(e2)})"
-        elif isinstance(expr, list) and expr[0] in ['-', '~'] and len(expr) == 2:
-            unOp, e = expr
-            return f"({unOp} {self._expr_to_str(e)})"
-        raise ValueError(f"Cannot convert expression to string: {expr}")
-
-    def generate_class(self, anf):
-        declared_vars, declared_funcs = set(), []
-        _, body_code = self.anf_to_jack(anf, declared_vars, target_var="result", declared_funcs=declared_funcs)
-
-        var_decls = [f"var int {v};" for v in declared_vars]
-
-        # generate lifted function definitions
-        func_decls = []
-        for fname, params, body in declared_funcs:
-            body_vars, func_body = self.anf_to_jack(body, declared_vars=set(), target_var="retval")
-            local_decls = [f"var int {v};" for v in body_vars]
-            func_code = (
-                f"function int {fname}({', '.join('int ' + p for p in params)}) {{\n"
-                + "var int retval;\n"
-                + "\n".join(local_decls) + "\n"
-                + func_body + "\n"
-                "return retval;\n}"
-            )
-            func_decls.append(func_code)
-
-        class_code = (
-            "class Main {\n"
-            + "\n".join(func_decls) + "\n\n"
-            "function void main() {\n"
-            + "var int result;\n"
-            + "\n".join(var_decls) + "\n"
-            + body_code + "\n"
-            "do Output.printInt(result);\n"
-            "return;\n"
-            "}\n"
-            "}"
-        )
-
-        return class_code
+        class_body = "\n\n".join(lifted_code + [main_code])
+        return f"class {class_name} {{\n{self.indent(class_body)}\n}}"
