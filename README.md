@@ -77,8 +77,8 @@ square lambda:
 named lambda (supported):
 (let (square (lambda (x) (* x x))) (if (> (square 3) 5) (print (square 10)) (print (square 2))))
 
-nested lambda (not supported):
+nested lambda (closures are not supported):
 (let (add (lambda (x) (lambda (y) (+ x y)))) (print ((add 2) 3)))
 
-nested lambda (not supported):
+nested lambda (closures are not supported):
 (print ((lambda (x) (lambda (y) (lambda (z) (+ x (+ y z)))) 1) 2 3))
