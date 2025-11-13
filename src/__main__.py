@@ -15,7 +15,7 @@ def main(prompt: str = "fjack.py> "):
             remove_anonymous_lambda,
             optimize_direct_call,
         ]
-        ast = run_pipeline(ast, passes, True)
+        ast = run_pipeline(ast, passes, False)
 
         ast, lifted = lambda_lift(ast)
 
