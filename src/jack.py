@@ -45,7 +45,10 @@ class JackGenerator:
                         code_lines.append(f"let {name} = {final_expr.replace('return ', '').rstrip(';')};")
                     else:
                         rhs = self.generate_expr(val, env)
-                        code_lines.append(f"let {name} = {rhs};")
+                        if rhs in self.lifted:
+                            new_env.define_func(name, rhs)
+                        else:
+                            code_lines.append(f"let {name} = {rhs};")
                     new_env.define_var(name)
                 code_lines.append(self.generate_expr(body, new_env))
                 return "\n".join(code_lines)
