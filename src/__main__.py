@@ -14,10 +14,9 @@ def main(prompt: str = "fjack.py> "):
             flatten_nested_lambdas,
             remove_anonymous_lambda,
             optimize_direct_call,
+            flatten_nested_lets
         ]
-        ast = run_pipeline(ast, passes, False)
-
-        ast, lifted = lambda_lift(ast)
+        ast, lifted = run_pipeline(ast, passes, True)
 
         gen = JackGenerator()
         jack_code = gen.generate_jack(ast, lifted)
@@ -30,7 +29,13 @@ def run_pipeline(ast, passes, printFlag):
         if printFlag:
             print(f"Pass: {p.__name__}")
             print(ast)
-    return ast
+
+    ast, lifted = lambda_lift(ast)
+    if printFlag:
+        print(f"Pass: lambda_lift")
+        print(ast)
+        print(lifted)
+    return ast, lifted
 
 if __name__ == "__main__":
     main()

@@ -77,3 +77,38 @@ def lambda_lift(ast, lifted=None):
         return new_ast, lifted
 
     return ast, lifted
+
+def flatten_nested_lets(expr):
+    """Flatten nested let expressions by removing unnecessary temporary bindings."""
+    if not isinstance(expr, list):
+        return expr
+
+    if len(expr) == 3 and expr[0] == 'let':
+        bindings, body = expr[1], expr[2]
+        new_bindings = []
+        new_body = flatten_nested_lets(body)
+
+        for var, val in bindings:
+            val = flatten_nested_lets(val)
+            # If val is a let, pull its bindings into the outer let
+            if isinstance(val, list) and len(val) == 3 and val[0] == 'let':
+                inner_bindings, inner_body = val[1], val[2]
+                new_bindings.extend(inner_bindings)
+                # Use inner body in place of the original binding variable
+                new_body = replace_var(new_body, var, inner_body)
+            else:
+                new_bindings.append([var, val])
+
+        return ['let', new_bindings, new_body]
+
+    # Otherwise recursively process sub-expressions
+    return [flatten_nested_lets(e) for e in expr]
+
+def replace_var(expr, var, val):
+    """Recursively replace occurrences of var in expr with val."""
+    if isinstance(expr, list):
+        return [replace_var(e, var, val) for e in expr]
+    elif expr == var:
+        return val
+    else:
+        return expr

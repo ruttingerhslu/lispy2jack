@@ -37,18 +37,11 @@ class JackGenerator:
                 new_env = Env(env)
                 code_lines = []
                 for name, val in bindings:
-                    if isinstance(val, list) and val and val[0] == "let":
-                        inner_code = self.generate_expr(val, new_env)
-                        inner_lines = inner_code.splitlines()
-                        *inner_assignments, final_expr = inner_lines
-                        code_lines.extend(inner_assignments)
-                        code_lines.append(f"let {name} = {final_expr.replace('return ', '').rstrip(';')};")
+                    rhs = self.generate_expr(val, env)
+                    if rhs in self.lifted:
+                        new_env.define_func(name, rhs)
                     else:
-                        rhs = self.generate_expr(val, env)
-                        if rhs in self.lifted:
-                            new_env.define_func(name, rhs)
-                        else:
-                            code_lines.append(f"let {name} = {rhs};")
+                        code_lines.append(f"let {name} = {rhs};")
                     new_env.define_var(name)
                 code_lines.append(self.generate_expr(body, new_env))
                 return "\n".join(code_lines)
