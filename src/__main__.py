@@ -1,6 +1,7 @@
 from .anf import normalize_term
 from .passes import *
-from .jack import JackGenerator
+from .new_jack import JackGenerator
+# from .jack import JackGenerator
 from .fjack import *
 
 def main(prompt: str = "fjack.py> "):
