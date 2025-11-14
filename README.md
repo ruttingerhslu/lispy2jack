@@ -35,7 +35,6 @@ Next, normalize using the algorithm described in "The essence of Compiling with 
 
 To make code generation simpler, we go through multiple passes of the CoreScheme ast:
 - normalize_term,
-- remove_anonymous_lambda
 - optimize_direct_call
 - flatten_nested_lets
 - lambda_lift
